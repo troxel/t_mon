@@ -1,6 +1,6 @@
 # t_mon
 
-##Consists of two processes:
+## Consists of two processes:
 
 ### 1) t_mon.py 
 
