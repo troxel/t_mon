@@ -13,9 +13,9 @@ Cherrypy code to provide a simple interface to display current temperatures and 
 
 ## Dependencies 
 
-arrow
-psutil
-cherrypy
+* arrow
+* psutil
+* cherrypy
 
 ## Misc
 
