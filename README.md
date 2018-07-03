@@ -2,12 +2,12 @@
 
 ##Consists of two processes:
 
-###1) t_mon.py 
+### 1) t_mon.py 
 
 Raspberry PI code to use a 1-wire Temperature sensor and execute some Trigger.py [def triggered()] when measured temperature 
 exceeds some define value. 
 
-###2) t_web.py 
+### 2) t_web.py 
 
 Cherrypy code to provide a simple interface to display current temperatures and triggered events and times. 
 
