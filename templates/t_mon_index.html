@@ -1,0 +1,191 @@
+<!-- BASE=t_mon_layout.html -->
+<!-- BEGIN=content -->
+<style>
+   td.low { background-color:lightblue;}
+   td.med { background-color:lightgreen;}
+   td.high { background-color:orangered ;}
+   tr.odd { color: #000000;}
+   tr.even { color:#0000A7;}
+   div.i
+   d { font-size:1.7em }
+   div.calc_block { border: 1px #443333 solid; background-color:#AABBAA; }
+   div.raw_block { border: 1px #443333 solid; background-color:#AABBDD; }
+   div.ll { margin-top:7px; font-size:21px; color:red; }
+</style>
+
+<div class="row" style="">
+   <div class="col-xs-7" style="margin-top:7px;">
+      <h3 style="font-weight:bold;margin-bottom:20px;">Temperature Monitor</h3>
+   </div>
+</div>
+<div class="row">
+   <div class="col">
+
+      <table class="table table-dark">
+      <caption align="top">Last Measurement</caption>
+      <tr><th>Time</th><th>Device ID</th><th>Temperature</th></tr>
+      <!-- BEGIN=t_row -->
+      <tr><td>$time_str</td><td>$dev_id</td><td>$temp_f F&deg;</td></tr>
+      <!-- END=t_row -->
+      <!-- BEGIN=no_last -->
+      <tr style="color:red;"><td colspan="99">No Temperature Measurement</td></tr>
+      <tr><td colspan="99">Is /home/pi/t_mon/t_mon.py running?</td></tr>
+      <!-- END=no_last -->
+      </table>
+
+      <!-- BEGIN=stale_warn -->
+      <h3 style="color:red;margin-top:10px;margin-bottom:25px;">
+      Temp Measurement is stale.<br>Is service t_mon.py running?
+      </h3>
+      <!-- END=stale_warn -->
+
+
+   </div>
+</div>
+<div class="row">
+   <div class="col">
+      <h3>Power Down Log</h3>
+      <!-- BEGIN=log_row -->
+      <div class="ll"> $log_line </div>
+      <!-- END=log_row -->
+      <!-- BEGIN=no_events -->
+      <div style="color:green;font-weight:bold;"> No Power Down Events Since Last Boot $uptime_str ago </div>
+      <!-- END=no_events -->
+   </div>
+</div>
+
+
+<div class="row">
+   <div class="col-xs-12" style="text-align:right;font-size:.7em;margin-top:50px;">
+      Version: $version
+   </div>
+</div>
+
+<!-- END=content -->
+<!-- BEGIN=jscript -->
+<script id="source" language="javascript" type="text/javascript">
+   $(document).ready( function(arg) {
+
+     $("#refresh").click( function(){ rtUpdate() } );
+
+     // Select of positions stuff
+     $("select").change( function() {
+           //$.get("/ajax_pos_select", select)
+           //alert( $("#range_asset").val() );
+           //alert( $("#barge_pos").val() );
+
+           var rng_asset = $("#rng_asset").val();
+           var brg_pos = $("#brg_pos").val();
+
+           var jqxhr = $.ajax(
+           {
+              url: "/ajax_pos_select",
+              //context:this,
+              method:'POST',
+              data: {'rng_asset':rng_asset,'brg_pos':brg_pos},
+              //dataType: "json",
+           })
+           .done( function( data ){ console.log(data) } )
+           .fail( function( xhr, status, errorThrown ) {
+             console.log( "Error: " + errorThrown );
+             console.log( "Status: " + status );
+             //console.dir( xhr )
+             });
+
+      });
+   });
+
+   // ---------------------------------------
+   rtUpdate = function(arg)
+   {
+     //this.prefix = arg.prefix;
+
+     var jqxhr = $.ajax(
+     {
+       url: "/ajax_latlong",
+       context:this,
+       dataType: "json",
+     })
+     .done( successHndl )
+     .fail( function( xhr, status, errorThrown ) {
+       console.log( "Error: " + errorThrown );
+       console.log( "Status: " + status );
+       console.dir( xhr )
+
+       // restart
+       interval = setTimeout( rtUpdate, 100000);
+     });
+
+     //-------------------------------------------
+     function successHndl(data, textStatus, xhr) {
+
+         for ( var id_param in data ) {
+
+             //alert(id_rtn); alert(data[id_rtn]);
+
+             //var id_page = id_rtn;
+             //if (this.prefix){ id_page = this.prefix + '-' + id_rtn; }
+
+             var id_obj = document.getElementById(id_param);
+
+             if ( id_obj )
+             {
+                 id_obj.innerHTML = data[id_param];
+             }
+         }
+
+         postSuccess(data);
+
+         interval = setTimeout( rtUpdate, 1000);
+     };
+   };
+
+   var cnt = 0;
+   var gps_msec_last = 0;
+   var spin_inx = 1;
+   var spin = ["|", "/", "--", "\\"];
+   var spin = ["<", "<<", "<<<", "<<<<"];
+   // ---------------------------------------
+   postSuccess = function(data)
+   {
+
+    var gps_msec = data['timestamp'] * 1000;
+    if ( gps_msec_last != gps_msec )
+    {
+       spin_inx++;
+       spin_inx = spin_inx % spin.length;
+       $('#spinner').text(spin[spin_inx]);
+       $('#spinner').css('color','green');
+    }
+    else
+    {
+       $('#spinner').css('color','red');
+    }
+
+    if ( data['qlt'] >= 4 )
+    {
+       $('#qlt').css('background-color','#007707');
+    }
+    else
+    {
+       $('#qlt').css('background-color','#BB0007');
+    }
+
+    gps_msec_last = gps_msec;
+
+    cnt++;
+    if ( cnt > 10 )
+    {
+       //console.log(data)
+       cnt = 0;
+    }
+
+
+
+   }
+
+
+   rtUpdate();
+   // setInterval( rtUpdate, 2000 );
+</script>
+<!-- END=jscript -->
