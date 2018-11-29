@@ -1,0 +1,9 @@
+systemctl disable bluetooth.service
+systemctl disable dhcpcd.service
+systemctl disable apt-daily-upgrade.timer
+systemctl disable apt-daily-upgrade.timer
+systemctl disable apt-daily.timer
+systemctl restart networking
+systemctl disable wifi-country.service
+systemctl disable nfs-client.target
+systemctl disable rsync.service

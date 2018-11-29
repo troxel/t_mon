@@ -11,13 +11,14 @@
    div.calc_block { border: 1px #443333 solid; background-color:#AABBAA; }
    div.raw_block { border: 1px #443333 solid; background-color:#AABBDD; }
    div.ll { margin-top:7px; font-size:21px; color:red; }
+
+   #flot-t_plot{
+      height:300px;
+
+    }
+
 </style>
 
-<div class="row" style="">
-   <div class="col-xs-7" style="margin-top:7px;">
-      <h3 style="font-weight:bold;margin-bottom:20px;">Temperature Monitor</h3>
-   </div>
-</div>
 <div class="row">
    <div class="col">
 
@@ -39,12 +40,12 @@
       </h3>
       <!-- END=stale_warn -->
 
-
    </div>
 </div>
+
 <div class="row">
    <div class="col">
-      <h3>Power Down Log</h3>
+      <h3>Power Down Log <span style="font-size:12px;">last three</span></h3>
       <!-- BEGIN=log_row -->
       <div class="ll"> $log_line </div>
       <!-- END=log_row -->
@@ -54,12 +55,43 @@
    </div>
 </div>
 
+<div class="row" style="margin-top:10px;">
+   <div class="col">
+      <hr>
+      <h2>Trends</h2>
+      <div id="flot-t_plot"></div>
+   </div>
+</div>
 
 <div class="row">
    <div class="col-xs-12" style="text-align:right;font-size:.7em;margin-top:50px;">
       Version: $version
    </div>
 </div>
+
+<script type="text/javascript">
+var plot_data = [ { label: "Foo", data: [ [10, 1], [17, -14], [30, 5] ] },
+  { label: "Bar", data: [ [11, 13], [19, 11], [30, -7] ] }
+]
+
+var plot_options = {
+    series: {
+        lines: { show: true },
+        points: { show: true }
+    },
+    xaxis: {
+      mode: "time",
+      timezone: "browser",
+      timeformat: "%H:%M"
+    }
+};
+
+$(document).ready(function(){
+    $.plot($("#flot-t_plot"), $plot_data , plot_options);
+});
+
+</script>
+
 
 <!-- END=content -->
 <!-- BEGIN=jscript -->
@@ -68,31 +100,6 @@
 
      $("#refresh").click( function(){ rtUpdate() } );
 
-     // Select of positions stuff
-     $("select").change( function() {
-           //$.get("/ajax_pos_select", select)
-           //alert( $("#range_asset").val() );
-           //alert( $("#barge_pos").val() );
-
-           var rng_asset = $("#rng_asset").val();
-           var brg_pos = $("#brg_pos").val();
-
-           var jqxhr = $.ajax(
-           {
-              url: "/ajax_pos_select",
-              //context:this,
-              method:'POST',
-              data: {'rng_asset':rng_asset,'brg_pos':brg_pos},
-              //dataType: "json",
-           })
-           .done( function( data ){ console.log(data) } )
-           .fail( function( xhr, status, errorThrown ) {
-             console.log( "Error: " + errorThrown );
-             console.log( "Status: " + status );
-             //console.dir( xhr )
-             });
-
-      });
    });
 
    // ---------------------------------------
@@ -102,7 +109,7 @@
 
      var jqxhr = $.ajax(
      {
-       url: "/ajax_latlong",
+       url: "/stastic/status.json",
        context:this,
        dataType: "json",
      })
@@ -117,16 +124,19 @@
      });
 
      //-------------------------------------------
-     function successHndl(data, textStatus, xhr) {
+     function successHndl_innerHTML(data, textStatus, xhr) {
 
          for ( var id_param in data ) {
 
              //alert(id_rtn); alert(data[id_rtn]);
-
-             //var id_page = id_rtn;
-             //if (this.prefix){ id_page = this.prefix + '-' + id_rtn; }
-
              var id_obj = document.getElementById(id_param);
+
+             var regex = RegExp("^flot-");
+             if ( regex.test(id_param) )
+             {
+                $.plot(id_param, data[id_param], plot_options);
+                continue;
+             }
 
              if ( id_obj )
              {
@@ -134,7 +144,7 @@
              }
          }
 
-         postSuccess(data);
+         //postSuccess(data);
 
          interval = setTimeout( rtUpdate, 1000);
      };
@@ -171,16 +181,12 @@
        $('#qlt').css('background-color','#BB0007');
     }
 
-    gps_msec_last = gps_msec;
-
     cnt++;
     if ( cnt > 10 )
     {
        //console.log(data)
        cnt = 0;
     }
-
-
 
    }
 
