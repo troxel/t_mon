@@ -14,6 +14,7 @@ def chk_and_stopall(file_name_in):
 
    for process in proc_lst:
 
+         print("killing {} {}".format(process.pid,process.name))
          process.terminate()
 
          # Get parent if
@@ -58,7 +59,7 @@ def _get_proc_lst(file_name_in):
       if re.match(file_name_in,file_name_called):
 
          if pid == process.pid:
-            print('Skip self!')
+            print('Skip self! ',process.pid)
             continue
 
          proc_lst.append(process)

@@ -17,7 +17,6 @@ import subprocess
 
 import traceback
 
-
 import solo
 solo.chk_and_stopall(__file__)
 
@@ -26,9 +25,25 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-q", help="Run in embedded mode",action="store_true")
 args = parser.parse_args()
 
+# ------- GPIO stuff -----------
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BOARD)
+GPIO.setwarnings(False)
+# ------------------------------
+
+# -------  Auth   -------
+# Doesn't work on chrome
+#from cherrypy.lib import auth_digest
+#Users = {'root': 'root'}
+# --------------------------
+# Try this instead...
+from webauth import AuthSession
+
 # Common file specifications
 import fspec
 
+# Load local packages
+sys.path.insert(0,'./packages/')
 from templaterex import TemplateRex
 
 class PyServ(object):
@@ -45,6 +60,13 @@ class PyServ(object):
       self.cnt = 1
       self.inc=0
 
+      self.pwr_btn = [ {'pin':38, 'lbl':'Alpha'}, {'pin':40, 'lbl':'Beta'} ]
+
+      for btn_hsh in self.pwr_btn:
+         GPIO.setup( btn_hsh['pin'], GPIO.OUT)
+
+      self.auth = AuthSession(url_login="/webpanel/auth/login")
+
    # ------------------------
    @cherrypy.expose
    def index(self):
@@ -53,6 +75,8 @@ class PyServ(object):
       root_path = os.getcwd()
 
       trex = TemplateRex(fname='t_mon_index.html')
+
+      self._header(trex)
 
       # Last Measurement
       rtn_json = self._read_json(fspec.t_last)
@@ -64,7 +88,7 @@ class PyServ(object):
 
          diff_time = time.time() - rtn_json['stat'].st_mtime
 
-         if diff_time > 10:
+         if diff_time > 20:
             trex.render_sec('stale_warn',{'diff_time':str(diff_time)})
 
       else:
@@ -72,7 +96,7 @@ class PyServ(object):
 
       # Display power down events.
       if os.path.isfile(fspec.pwr_down_log):
-         cmd_lst = ['tail',fspec.pwr_down_log]
+         cmd_lst = ['tail','-3',fspec.pwr_down_log]
          rtn = subprocess.run(cmd_lst, stdout=subprocess.PIPE)
          log_tail = rtn.stdout.decode('utf-8')
 
@@ -85,8 +109,50 @@ class PyServ(object):
             uptime_str = self._uptime()
             trex.render_sec('no_events',{'uptime_str':uptime_str})
 
-
       data_hsh['version'] = self.version
+
+      try:
+         fd = open(fspec.state_json,'r')
+         data_hsh["plot_data"]= fd.read()
+         fd.close()
+      except:
+         data_hsh['err_msg'] = "Cannot open State file..."
+
+      trex.render_sec('content',data_hsh)
+
+      page = trex.render({'refresh':7})
+
+      return page
+
+   # ------------------------
+   @cherrypy.expose
+   def control_disp(self, **params):
+
+      data_hsh = {}
+
+      data_hsh['username'] = self.auth.authorize()
+
+      trex = TemplateRex(fname='t_mon_control_disp.html')
+
+      # ---- Control this is where it happens -------
+
+      if 'pwr_selected' in params:
+         pin = self.pwr_btn[int(params['pwr_selected'])]['pin']
+         GPIO.output(pin,int(params['on_off']))
+      # ---------------------------------------------
+
+      self._header(trex)
+
+      for inx,btn_hsh in enumerate(self.pwr_btn):
+
+         btn_hsh['inx'] = inx
+         if GPIO.input(btn_hsh['pin']):
+            btn_hsh['checked'] = 'checked'
+            trex.render_sec('sldr_set',btn_hsh)
+
+         else:
+            btn_hsh['checked'] = ''
+            trex.render_sec('sldr_set',btn_hsh)
 
       trex.render_sec('content',data_hsh)
 
@@ -94,9 +160,50 @@ class PyServ(object):
 
       return page
 
+   # ------------------------
+   @cherrypy.expose
+   def control_ctl(self, **vars):
+
+      ##pprint(cherrypy.request.params)
+      pprint(vars)
+
+      raise cherrypy.HTTPRedirect('/control_disp')
+
    # --------------------------------------------
    # utility functions
    # --------------------------------------------
+
+   # --------------------------------------------
+   # Common featured called at the end of each callback abstracted out
+   def render_layout(self,trex,data_hsh={}):
+
+      data_hsh['version'] = self.version
+
+      # local ip means nginx is handling the request - set baseref
+      #if cherrypy.request.headers['Remote-Addr'] == '127.0.0.1':
+      #   data_hsh['base_ref'] = '/webpanel/'
+      #else:
+      #   data_hsh['base_ref'] = '/'
+
+      trex.render_sec('content',data_hsh)
+
+      return(trex.render(data_hsh))
+
+   # -----------------------
+   def _header(self,trex):
+
+      # Display current status on all pages
+      for btn_hsh in self.pwr_btn:
+         pprint(btn_hsh['lbl'])
+         if GPIO.input(btn_hsh['pin']):
+            trex.render_sec('stat_on',btn_hsh)
+         else:
+            trex.render_sec('stat_off',btn_hsh)
+
+         trex.render_sec('stat_grp')
+
+
+   # -----------------------
    def _uptime(self):
       with open('/proc/uptime', 'r') as fid:
          uptime_seconds = float(fid.readline().split()[0])
@@ -125,7 +232,7 @@ class PyServ(object):
 
 
 ####### End of Class PyServ #############
-port = 8080
+port = 9090
 
 if __name__ == '__main__':
 
@@ -140,13 +247,37 @@ if __name__ == '__main__':
       print("\nStarting {} Server\n".format(__file__))
       print("Use Chrome and go to port {}/\n".format(port))
 
+   dir_session = '/tmp/sessions'
+   if not os.path.exists(dir_session):
+          os.mkdir(dir_session)
+
+   cherrypy.config.update({'tools.sessions.storage_type':"file"})
+   cherrypy.config.update({'tools.sessions.storage_path':dir_session})
+
+   cherrypy.config.update({'tools.sessions.on': True})
+   cherrypy.config.update({'tools.sessions.timeout': 99999})
+
    cherrypy.config.update({'server.socket_port': port})
    cherrypy.config.update({'server.socket_host': "0.0.0.0" })
+
+   # ------- doesn't work on chrome -----
+   #digest_conf = {'tools.auth_digest.on': True,
+   #'tools.auth_digest.realm': 'power',
+   #'tools.auth_digest.get_ha1': auth_digest.get_ha1_dict_plain(Users),
+   #'tools.auth_digest.key': '1245678900987654321'
+   #}
+   #cherrypy.config.update(digest_conf)
+   # --------------
+
+   # ---- SSL cert ---- <--- doesn't work and no fix is offered
+   #cherrypy.config.update({'server.ssl_module': 'builtin' })
+   #cherrypy.config.update({'server.ssl_certificate': './conf/cert.pem' })
+   #cherrypy.config.update({'server.ssl_private_key': './conf/privkey.pem' })
+   # --------------
 
    # Run in embedded mode
    if args.q:
       cherrypy.config.update({'environment': 'production'})
       cherrypy.config.update({'log.access_file':'/dev/null'})
 
-   cherrypy.quickstart(PyServ(), '/', '/home/pi/t_mon/conf/pyserv.conf')
-   p.terminate()
+   cherrypy.quickstart(PyServ(), '/', '/opt/t_mon/conf/pyserv.conf')

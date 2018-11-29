@@ -27,6 +27,12 @@ args = parser.parse_args()
 os.system('modprobe w1-gpio')  # Turns on the GPIO module
 os.system('modprobe w1-therm') # Turns on the temperature module
 
+# ------- GPIO stuff -----------
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BOARD)
+GPIO.setwarnings(False)
+# ------------------------------
+
 # Finds the correct device file that holds the temperature data
 base_dir = '/sys/bus/w1/devices/'
 dev_file_lst = list( map( lambda x: x+'/w1_slave' , glob.glob(base_dir +  '28*') ) )
@@ -37,11 +43,17 @@ if not dev_file_lst:
 
 # Set up device list
 dev_hsh = {}
+flot_lst = []
 for dev_file in dev_file_lst:
    rtn = re.search("28-(\w+)",dev_file)
    dev_id = rtn.group(1)
-   dq = collections.deque(maxlen=10) # circ buffer
+   dq = collections.deque(maxlen=70) # circ buffer
    dev_hsh[dev_file] = { "dev_id":dev_id, "bufr":dq, "trip_cnt":0, "dev_file":dev_file }
+
+   flot_lst.append({ "label":dev_id, "data":[]} )
+
+   #plot_data = [ { label: "Foo", data: [ [10, 1], [17, -14], [30, 5] ] },
+   #{ label: "Bar", data: [ [11, 13], [19, 11], [30, -7] ] } ]
 
 # --------- util functions ---------------------
 def read_temp(dev_file):
@@ -68,6 +80,8 @@ def read_temp(dev_file):
   return False
 
 # If triggered call back module is present and defined use it.
+# Using a triggered module allows us to generalized the code and use
+# customized responses.
 try:
    from triggered import triggered
 except ImportError:
@@ -82,12 +96,37 @@ print("Starting")
 
 # -- Configuration parameters --
 temp_f_max = 77 # Trigging Temperature
-trip_max = 3    # Number of times to exceed temp_f_max before triggering
+trip_max   = 3  # Number of times to exceed temp_f_max before triggering
 cycle_time = 5  # Number of seconds per sampling
+
+# --- GPIO ------
+pin_status = 31
+GPIO.setup( pin_status, GPIO.OUT)
+
+pin_ac = 33
+GPIO.setup( pin_ac , GPIO.OUT)
+
+pin_vsense = 29
+GPIO.setup( pin_vsense , GPIO.IN)
+
+# GPIO ISR
+def vsense(channel):
+   # A/C indicator
+   if GPIO.input(pin_vsense):
+      GPIO.output(pin_ac, True)
+   else:
+      GPIO.output(pin_ac, False)
+
+GPIO.add_event_detect(pin_vsense, GPIO.BOTH, callback=vsense)
+
+vsense(pin_vsense)
+
 # --------------------------
 while(1):
 
    t_last = []
+   time_rec = int(time.time()) * 1000;
+   inx = 0
    for dev_file in list( dev_hsh.keys() ):
 
       try:
@@ -96,6 +135,13 @@ while(1):
          print("Exception {0} at {1}".format(err,time_str))
          time.sleep(2)
          next
+
+      # plotting to do plotting
+      dev_hsh[dev_file]['bufr'].append([ time_rec, temp_f ])
+
+      flot_lst[inx]["data"] = list(dev_hsh[dev_file]['bufr']
+      )
+      inx = inx + 1
 
       time_str = str( datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
       msg = "{} {} {:.1f}".format(time_str,dev_hsh[dev_file]['dev_id'],temp_f)
@@ -110,10 +156,11 @@ while(1):
       else:
          dev_hsh[dev_file]['trip_cnt'] = 0
 
-      # Send power down if trim_max times in a row
+      # Send power down if trip_max times in a row
       if dev_hsh[dev_file]['trip_cnt'] > trip_max:
 
          triggered()
+
          msg = "{} {} POWER GOING Down Temperature is {:.1f}\n".format(time_str,dev_id,temp_f)
          print(msg)
          fd = open(fspec.pwr_down_log,'a')
@@ -122,9 +169,18 @@ while(1):
 
          dev_hsh[dev_file]['trip_cnt'] = 0
 
-
    fd = open(fspec.t_last,'w')
    fd.write(json.dumps(t_last))
    fd.close()
 
-   time.sleep(5)
+   fd = open(fspec.state_json,'w')
+   fd.write(json.dumps(flot_lst))
+   fd.close()
+
+   # Set LEDs
+   for inx in range(cycle_time):
+      if GPIO.input(pin_status):
+            GPIO.output(pin_status,False)
+      else:
+            GPIO.output(pin_status,True)
+      time.sleep(1)
