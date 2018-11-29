@@ -1,0 +1,15 @@
+[Unit]
+Description=Temperature Monitoring PowerDown Service
+After=network.target
+
+[Service]
+ExecStart=/opt/t_mon/t_mon.py -q
+User=pi
+Group=pi
+KillMode=process
+Restart=always
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
+

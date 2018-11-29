@@ -1,0 +1,14 @@
+[Unit]
+Description=Temperature Monitoring Display
+After=network.target t_mon.service
+
+[Service]
+ExecStart=/opt/t_mon/t_web.py -q 
+KillMode=process
+Restart=always
+Type=simple
+WorkingDirectory=/opt/t_mon
+
+[Install]
+WantedBy=multi-user.target
+
