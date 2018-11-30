@@ -154,11 +154,7 @@ class PyServ(object):
             btn_hsh['checked'] = ''
             trex.render_sec('sldr_set',btn_hsh)
 
-      trex.render_sec('content',data_hsh)
-
-      page = trex.render()
-
-      return page
+      return( self.render_layout(trex,locals()) )
 
    # ------------------------
    @cherrypy.expose
@@ -178,14 +174,10 @@ class PyServ(object):
    def render_layout(self,trex,data_hsh={}):
 
       data_hsh['version'] = self.version
-
-      # local ip means nginx is handling the request - set baseref
-      #if cherrypy.request.headers['Remote-Addr'] == '127.0.0.1':
-      #   data_hsh['base_ref'] = '/webpanel/'
-      #else:
-      #   data_hsh['base_ref'] = '/'
-
       trex.render_sec('content',data_hsh)
+
+      if cherrypy.request.login:
+         trex.render_sec('logged_in',{'user':cherrypy.request.login})
 
       return(trex.render(data_hsh))
 
