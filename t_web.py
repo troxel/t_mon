@@ -42,6 +42,9 @@ from webauth import AuthSession
 # Common file specifications
 import fspec
 
+# Trigger thresholds
+from threshold import temp_f_max,trip_max,cycle_time
+
 # Load local packages
 sys.path.insert(0,'./packages/')
 from templaterex import TemplateRex
@@ -118,6 +121,10 @@ class PyServ(object):
       except:
          data_hsh['err_msg'] = "Cannot open State file..."
 
+      data_hsh['temp_f_max'] = temp_f_max
+      data_hsh['trip_max']   = trip_max
+      data_hsh['cycle_time'] = cycle_time
+
       trex.render_sec('content',data_hsh)
 
       page = trex.render({'refresh':7})
@@ -186,7 +193,7 @@ class PyServ(object):
 
       # Display current status on all pages
       for btn_hsh in self.pwr_btn:
-         pprint(btn_hsh['lbl'])
+         #pprint(btn_hsh['lbl'])
          if GPIO.input(btn_hsh['pin']):
             trex.render_sec('stat_on',btn_hsh)
          else:
@@ -218,7 +225,7 @@ class PyServ(object):
                try_inx = try_inx + 1
                print("Unexpected error:", sys.exc_info()[0])
                print(traceback.format_exc())
-      print(">>> {}".format(try_inx))
+
       return(False)
 
 

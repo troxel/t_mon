@@ -95,9 +95,12 @@ except ImportError:
 print("Starting")
 
 # -- Configuration parameters --
-temp_f_max = 77 # Trigging Temperature
-trip_max   = 3  # Number of times to exceed temp_f_max before triggering
-cycle_time = 5  # Number of seconds per sampling
+#temp_f_max = 77 # Trigging Temperature
+#trip_max   = 3  # Number of times to exceed temp_f_max before triggering
+#cycle_time = 5  # Number of seconds per sampling
+
+# Move to file so that t_web can gain access...
+from threshold import temp_f_max,trip_max,cycle_time
 
 # --- GPIO ------
 pin_status = 31

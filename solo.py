@@ -59,7 +59,7 @@ def _get_proc_lst(file_name_in):
       if re.match(file_name_in,file_name_called):
 
          if pid == process.pid:
-            print('Skip self! ',process.pid)
+            #print('Skip self! ',process.pid)
             continue
 
          proc_lst.append(process)
