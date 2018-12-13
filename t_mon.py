@@ -18,6 +18,10 @@ import fspec
 import solo
 solo.chk_and_stopall(__file__)
 
+# Disk utils to facilitate rw/ro ops
+from commonutils import Utils
+utils = Utils()
+
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-q", help="Run with no stdout",action="store_true")
@@ -165,20 +169,17 @@ while(1):
          triggered()
 
          msg = "{} {} POWER GOING Down Temperature is {:.1f}\n".format(time_str,dev_id,temp_f)
-         print(msg)
+
+         utils.rw()
          fd = open(fspec.pwr_down_log,'a')
          fd.write(msg)
          fd.close()
+         utils.ro()
 
          dev_hsh[dev_file]['trip_cnt'] = 0
 
-   fd = open(fspec.t_last,'w')
-   fd.write(json.dumps(t_last))
-   fd.close()
-
-   fd = open(fspec.state_json,'w')
-   fd.write(json.dumps(flot_lst))
-   fd.close()
+   utils.write_sysfile(fspec.t_last, json.dumps(t_last))
+   utils.write_sysfile(fspec.state_json,json.dumps(flot_lst))
 
    # Set LEDs
    for inx in range(cycle_time):

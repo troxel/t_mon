@@ -20,6 +20,10 @@ import traceback
 import solo
 solo.chk_and_stopall(__file__)
 
+# Disk utils to facilitate rw/ro ops
+from commonutils import Utils
+utils = Utils()
+
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-q", help="Run in embedded mode",action="store_true")
@@ -127,7 +131,7 @@ class PyServ(object):
 
       trex.render_sec('content',data_hsh)
 
-      page = trex.render({'refresh':7})
+      page = trex.render()
 
       return page
 
@@ -248,7 +252,9 @@ if __name__ == '__main__':
 
    dir_session = '/tmp/sessions'
    if not os.path.exists(dir_session):
+          utils.rw()
           os.mkdir(dir_session)
+          utils.ro()
 
    cherrypy.config.update({'tools.sessions.storage_type':"file"})
    cherrypy.config.update({'tools.sessions.storage_path':dir_session})

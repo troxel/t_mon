@@ -84,10 +84,6 @@
 </div>
 
 <script type="text/javascript">
-var plot_data = [ { label: "Foo", data: [ [10, 1], [17, -14], [30, 5] ] },
-  { label: "Bar", data: [ [11, 13], [19, 11], [30, -7] ] }
-]
-
 var plot_options = {
     series: {
         lines: { show: true },
@@ -101,112 +97,25 @@ var plot_options = {
 };
 
 $(document).ready(function(){
-   $.plot($("#flot-t_plot"), $plot_data , plot_options)
+   var tplot = $.plot($("#flot-t_plot"), $plot_data , plot_options)
+
+   // User javascript here instead of meta refresh because flot leaves
+   // around resources that lockup the browser after a day or two.
+   // https://stackoverflow.com/questions/15858001/destroying-jquery-flot-graph
+   var refresh = function()
+   {
+      tplot.destroy()
+      location.reload()
+   }
+
+   setTimeout( refresh, 5000);
+
 });
-
-
 </script>
 
 
 <!-- END=content -->
 <!-- BEGIN=jscript -->
 <script id="source" language="javascript" type="text/javascript">
-   $(document).ready( function(arg) {
-
-     $("#refresh").click( function(){ rtUpdate() } );
-
-   });
-
-   // ---------------------------------------
-   rtUpdate = function(arg)
-   {
-     //this.prefix = arg.prefix;
-
-     var jqxhr = $.ajax(
-     {
-       url: "/stastic/status.json",
-       context:this,
-       dataType: "json",
-     })
-     .done( successHndl )
-     .fail( function( xhr, status, errorThrown ) {
-       console.log( "Error: " + errorThrown );
-       console.log( "Status: " + status );
-       console.dir( xhr )
-
-       // restart
-       interval = setTimeout( rtUpdate, 100000);
-     });
-
-     //-------------------------------------------
-     function successHndl_innerHTML(data, textStatus, xhr) {
-
-         for ( var id_param in data ) {
-
-             //alert(id_rtn); alert(data[id_rtn]);
-             var id_obj = document.getElementById(id_param);
-
-             var regex = RegExp("^flot-");
-             if ( regex.test(id_param) )
-             {
-                $.plot(id_param, data[id_param], plot_options);
-                continue;
-             }
-
-             if ( id_obj )
-             {
-                 id_obj.innerHTML = data[id_param];
-             }
-         }
-
-         //postSuccess(data);
-
-         interval = setTimeout( rtUpdate, 1000);
-     };
-   };
-
-   var cnt = 0;
-   var gps_msec_last = 0;
-   var spin_inx = 1;
-   var spin = ["|", "/", "--", "\\"];
-   var spin = ["<", "<<", "<<<", "<<<<"];
-   // ---------------------------------------
-   postSuccess = function(data)
-   {
-
-    var gps_msec = data['timestamp'] * 1000;
-    if ( gps_msec_last != gps_msec )
-    {
-       spin_inx++;
-       spin_inx = spin_inx % spin.length;
-       $('#spinner').text(spin[spin_inx]);
-       $('#spinner').css('color','green');
-    }
-    else
-    {
-       $('#spinner').css('color','red');
-    }
-
-    if ( data['qlt'] >= 4 )
-    {
-       $('#qlt').css('background-color','#007707');
-    }
-    else
-    {
-       $('#qlt').css('background-color','#BB0007');
-    }
-
-    cnt++;
-    if ( cnt > 10 )
-    {
-       //console.log(data)
-       cnt = 0;
-    }
-
-   }
-
-
-   rtUpdate();
-   // setInterval( rtUpdate, 2000 );
 </script>
 <!-- END=jscript -->
