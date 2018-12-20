@@ -4,8 +4,6 @@ After=network.target
 
 [Service]
 ExecStart=/home/pi/t_mon/t_mon.py -q
-User=pi
-Group=pi
 KillMode=process
 Restart=always
 Type=simple

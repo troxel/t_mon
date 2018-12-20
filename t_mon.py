@@ -170,16 +170,17 @@ while(1):
 
          msg = "{} {} POWER GOING Down Temperature is {:.1f}\n".format(time_str,dev_id,temp_f)
 
-         utils.rw()
          fd = open(fspec.pwr_down_log,'a')
          fd.write(msg)
          fd.close()
-         utils.ro()
 
          dev_hsh[dev_file]['trip_cnt'] = 0
 
-   utils.write_sysfile(fspec.t_last, json.dumps(t_last))
-   utils.write_sysfile(fspec.state_json,json.dumps(flot_lst))
+   with open(fspec.t_last, 'w') as file:
+    file.write(json.dumps(t_last))
+
+   with open(fspec.state_json, 'w') as file:
+    file.write(json.dumps(flot_lst))
 
    # Set LEDs
    for inx in range(cycle_time):

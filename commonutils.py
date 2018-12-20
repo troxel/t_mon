@@ -2,8 +2,11 @@ import pprint
 import os
 import os.path
 import subprocess
+import cherrypy
 
 class Utils:
+
+   # Common utils to mostly handle ro/rw issues and other common needs
 
    def __init__(self):
       version = 1.0;
@@ -51,6 +54,7 @@ class Utils:
          return(False)
 
    # ------------------------
+   # Removes dir contents
    def rm_dir(self,dspec):
 
       cnt = dspec.count("/")
@@ -59,10 +63,25 @@ class Utils:
          return(False)
 
       self.rw()
-      rtn = os.system('rm {}'.format(dspec))
+      rtn = os.system('rm -rf {}'.format(dspec))
       self.ro()
 
       if rtn == 0:
          return(True)
       else:
          return(False)
+
+   # ------------------------
+   def url_gen(self,path,from_page=''):
+      # Cannot do relative url redirects when working with proxy
+      # as cherrpy isn't aware of the protocol
+
+      host = cherrypy.request.headers.get('Host')
+      proto = cherrypy.request.headers.get('X-Scheme')
+      if proto is None: proto = 'http'
+
+      if from_page:
+         from_page = "?from_page={}".format(from_page)
+
+      url = "{}://{}{}{}".format(proto,host,path,from_page)
+      return(url)
